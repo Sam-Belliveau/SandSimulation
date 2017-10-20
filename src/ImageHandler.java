@@ -1,67 +1,54 @@
-import java.awt.Color;
-import java.awt.Dimension;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
+import java.awt.*;
+import java.awt.event.*;
 import java.awt.image.BufferedImage;
 
-import javax.swing.ImageIcon;
-import javax.swing.JFrame;
-import javax.swing.JLabel;
-import javax.swing.WindowConstants;
+import javax.swing.*;
 
 @SuppressWarnings("serial")
 public final class ImageHandler extends JFrame {
-	
-	public boolean[][] world = new boolean[500][500];
 
-	public JLabel outImage = new JLabel();
+	public final JLabel outImage = new JLabel();
 	
 	public BufferedImage boardImage;
 	
 	public int[] roundedNumbers;
 	
-	public final int speedMultiplier = 5;
-	
 	public final int worldSize = 720;
 	
-	public final int imageSize = 720;
+	public final int brushSize = 72;
 	
-	public final double brushSize = 72;
+	public boolean[][] world = new boolean[worldSize][worldSize];
 	
-	private int roundX, roundY;
-	
-	private boolean temp;
-	
-	private boolean bl, br;
-	
-	private boolean[][] movedFrom = new boolean[worldSize][worldSize];
-	
-	private final int Red = (new Color(255, 0, 0)).getRGB();
-	private final int Background = (new Color(0, 128, 255)).getRGB();
-	private final int Front = (new Color(255, 128, 0)).getRGB();
+	private final Color Background =  new Color(0, 128, 255);
+	private final int Clear = (new Color(0, 128, 255)).getRGB() & (0 << 24) | 0x00ffffff;
+	private final int Front = (new Color(255, 128, 0)).getRGB() & ((255 << 24) | 0x00ffffff);
+	private final int Black = (new Color(0, 0, 0)).getRGB() & ((255 << 24) | 0x00ffffff);
 	
 	public boolean playing = false;
 	
 	public void reset(){
 		//System.setProperty("sun.java2d.opengl", "true");
-		movedFrom = new boolean[worldSize][worldSize];
-		boardImage = new BufferedImage(imageSize, imageSize, BufferedImage.TYPE_INT_RGB);
-		outImage.setPreferredSize(new Dimension(imageSize, imageSize));
+		boardImage = new BufferedImage(worldSize, worldSize, BufferedImage.TYPE_INT_ARGB);
+		outImage.setPreferredSize(new Dimension(worldSize, worldSize));
 		
 		playing = false;
 		
-		roundedNumbers = new int[imageSize];
-		
 		world = new boolean[worldSize][worldSize];
+		setResizable(true);
 		
-		setSize(imageSize+10,imageSize+35);
-		outImage.setBounds(0, 0, imageSize, imageSize);
+		getContentPane().setMinimumSize(new Dimension(worldSize, worldSize));
+		outImage.setBounds(20, 20, worldSize, worldSize);
+		outImage.setMinimumSize(new Dimension(worldSize, worldSize));
 		
-		final int ratio = (imageSize/worldSize);
-		for(int n = 0; n < imageSize; n++){
-				roundedNumbers[n] = Math.round(n/ratio);
+		setResizable(false);
+		
+		for(int x = 0; x < worldSize; x++){
+			for(int y = 0; y < worldSize; y++){
+				boardImage.setRGB(x, y, Clear);
+				if(!(y < worldSize-5 && y > 4 && x < worldSize-5 && x > 4)){
+					boardImage.setRGB(x, y, Black);
+				}
+			}
 		}
 	}
 	
@@ -71,11 +58,13 @@ public final class ImageHandler extends JFrame {
 		setResizable(true);
 		setTitle("Gravity!");
 		getContentPane().setLayout(null);
-		setSize(0,0);
-		outImage.setBounds(0, 0, imageSize, imageSize);
+		setSize(worldSize+45,worldSize+75);
+		getContentPane().setBackground(Background);
+		
+		outImage.setBounds(20, 20, worldSize, worldSize);
+		outImage.setMinimumSize(new Dimension(worldSize, worldSize));
 		getContentPane().add(outImage);
-		outImage.setMinimumSize(new Dimension(imageSize, imageSize));
-		pack();
+		
 		setResizable(false);
 		addKeyListener(new KeyListener() {
 
@@ -95,100 +84,88 @@ public final class ImageHandler extends JFrame {
 		getContentPane().addMouseListener(new MouseAdapter() {
             public void mousePressed(MouseEvent e) {
             	boolean ptemp = playing;
-            	playing = false;
-            	
-            	roundX = Math.round(e.getX()/((imageSize/worldSize)));
-            	roundY = Math.round(e.getY()/((imageSize/worldSize)));
-                try{
-                	for(double i = -brushSize; i < brushSize; i++){
-        				for(double ii = -brushSize; ii < brushSize; ii++){
-        					try{
-        						if((i*i)+(ii*ii)<(brushSize*brushSize)){
-        							world[(int) (roundX+i)][(int) (roundY+ii)] = !world[(int) (roundX+i)][(int) (roundY+ii)];
-        						}
-        					} catch (Exception q){}
-                    	}
-                	}
-                } catch (ArrayIndexOutOfBoundsException a) {}
-            	
+            	try{
+	            	boolean draw = !world[e.getX()-20][e.getY()-20];
+	            	playing = false;
+	            	for(int i = -brushSize; i < brushSize; i++){
+	    				for(int ii = -brushSize; ii < brushSize; ii++){
+	    					try{
+	    						if((i*i)+(ii*ii)<(brushSize*brushSize)){
+	        	    				if(!draw){
+	        	    					world[e.getX()+i-20][e.getY()+ii-20] = false;
+	        	    					boardImage.setRGB(e.getX()+i-20, e.getY()+ii-20, Clear);
+	        	    				} else {
+	        	    					world[e.getX()+i-20][e.getY()+ii-20] = true;
+	        	    					boardImage.setRGB(e.getX()+i-20, e.getY()+ii-20, Front);
+	        	    				}
+	    						}
+	    					} catch (ArrayIndexOutOfBoundsException q){}
+	                	}
+	            	}
+            	} catch(Exception q){}
             	playing = ptemp;
             }
             
             public void mouseReleased(MouseEvent e) {}
         });
+		
+		reset();
+		
+		paint();
 	}
 	
+	
+	
 	public void paint(){
-		if(playing){
-			for(int i = 0; i < speedMultiplier; i ++){
-				update();
-			}
+		if(!playing){
+			return;
 		}
 		
-		for(int x = 0; x < imageSize; x++){
-			for(int y = 0; y < imageSize; y++){
-				try{
-					temp = world[roundedNumbers[x]][roundedNumbers[y]];
-					if(temp){
-						boardImage.setRGB(x, y, Front);
-					} else {
-						boardImage.setRGB(x, y, Background);
-					}	
-				}catch(Exception e){ boardImage.setRGB(x, y, Red); }
-			}
-		}
-		outImage.setIcon(new ImageIcon(boardImage));
+		boolean[][] movedFrom = new boolean[worldSize][worldSize];
 		
-	}
-
-	public void update(){
 		for(int x = 0; x < worldSize; x++){
 			for(int y = worldSize-1; y > -1; y--){
-				movedFrom[x][y] = true;
-				if(world[x][y]){
-					try{
-						if(!world[x][y+1] && movedFrom[x][y+1]){
-							try{
-								movedFrom[x][y] = false;
-								world[x][y] = false;
-								world[x][y+1] = true;
-							} catch(Exception e){}
-						} else {
-							bl = true; br = true;
-							try{
-								if(!world[x-1][y] && !world[x-2][y]){
-									bl = world[x-1][y+1];
-								}
-							} catch(Exception e){
-								try{
-									if(!world[x-1][y]){
-										bl = world[x-1][y+1];
-									}
-								} catch(Exception q){}
+				if(y < worldSize-5 && y > 4 && x < worldSize-5 && x > 4){
+					if(world[x][y]){
+						if(!world[x][y+1] && !movedFrom[x][y+1]){
+							movedFrom[x][y] = true;
+							
+							world[x][y] = false;
+							boardImage.setRGB(x, y, Clear);
+
+							world[x][y+1] = true;
+							boardImage.setRGB(x, y+1, Front);
+						} else if (!world[x-1][y+1] ^ !world[x+1][y+1]){
+							boolean bl = true, br = true;
+							if(!world[x-1][y] && !world[x-2][y]){
+								bl = world[x-1][y+1];
 							}
-							try{
-								if(!world[x+1][y] && !world[x+2][y]){
-									br = world[x+1][y+1];
-								} 
-							} catch(Exception e){
-								try{
-									if(!world[x-1][y]){
-										bl = world[x-1][y+1];
-									}
-								} catch(Exception q){}
-							}
+							if(!world[x+1][y] && !world[x+2][y]){
+								br = world[x+1][y+1];
+							} 
 							
 							if(!bl && br){
 								world[x][y] = false;
+								boardImage.setRGB(x, y, Clear);
+
 								world[x-1][y+1] = true;
+								boardImage.setRGB(x-1, y+1, Front);
 							} else if (!br && bl) {
 								world[x][y] = false;
+								boardImage.setRGB(x, y, Clear);
+
 								world[x+1][y+1] = true;
+								boardImage.setRGB(x+1, y+1, Front);
+							} else {
+								boardImage.setRGB(x, y, Front);
 							}
-						}
-					} catch(Exception e){}
+						} 
+					} 
+				} else {
+					boardImage.setRGB(x, y, Black);
 				}
-			}
+			} 
 		}
+		outImage.setIcon(new ImageIcon(boardImage));
 	}
 }
